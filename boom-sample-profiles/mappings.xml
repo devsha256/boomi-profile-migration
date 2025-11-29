@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?><Component xmlns:bns="http://api.platform.boomi.com/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" branchId="Qjo1MTcwOTE" branchName="main" componentId="6fa61fd7-bcd8-487f-99c2-cfe25628bb49" createdDate="2025-10-22T09:13:50Z" currentVersion="true" deleted="false" folderFullPath="Training-saddam-hossain/REST" folderId="Rjo3OTYyNjkx" folderName="REST" modifiedDate="2025-11-03T19:34:13Z" name="New XML Profile" type="profile.xml" version="2">
+  <bns:encryptedValues/>
+  <bns:description/>
+  <bns:object>
+    <XMLProfile modelVersion="2" strict="true">
+      <ProfileProperties>
+        <XMLGeneralInfo/>
+        <XMLOptions encoding="utf8" implicitElementOrdering="true" parseRespectMaxOccurs="true" respectMinOccurs="false" respectMinOccursAlways="false"/>
+      </ProfileProperties>
+      <DataElements>
+        <XMLElement dataType="character" isMappable="true" isNode="true" key="2" maxOccurs="1" minOccurs="1" name="ProductOrder" useNamespace="-1" validateData="false">
+          <DataFormat>
+            <ProfileCharacterFormat/>
+          </DataFormat>
+          <QualifierList/>
+          <XMLElement comments="" dataType="character" isMappable="true" isNode="true" key="3" maxLength="10" maxOccurs="1" minLength="1" minOccurs="0" name="OrderID" useNamespace="-1" validateData="true">
+            <DataFormat>
+              <ProfileCharacterFormat/>
+            </DataFormat>
+            <QualifierList/>
+            <XMLAttribute dataType="character" isMappable="true" isNode="true" key="4" name="type" required="false" useNamespace="-1" validateData="false">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+              <QualifierList/>
+            </XMLAttribute>
+          </XMLElement>
+          <XMLElement dataType="character" isMappable="true" isNode="true" key="5" maxOccurs="1" minOccurs="0" name="CustomerDetails" useNamespace="-1">
+            <DataFormat>
+              <ProfileCharacterFormat/>
+            </DataFormat>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="6" maxOccurs="1" minOccurs="0" name="CustomerID" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+            </XMLElement>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="7" maxOccurs="1" minOccurs="0" name="FullName" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+            </XMLElement>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="8" maxOccurs="1" minOccurs="0" name="Contact" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="9" maxOccurs="1" minOccurs="0" name="Email" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="10" maxOccurs="1" minOccurs="0" name="Phone" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+                <XMLAttribute dataType="character" isMappable="true" isNode="true" key="11" name="type" required="false" useNamespace="-1">
+                  <DataFormat>
+                    <ProfileCharacterFormat/>
+                  </DataFormat>
+                </XMLAttribute>
+              </XMLElement>
+            </XMLElement>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="12" maxOccurs="1" minOccurs="0" name="IsPreferredCustomer" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+              <XMLAttribute dataType="character" isMappable="true" isNode="true" key="13" name="type" required="false" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLAttribute>
+            </XMLElement>
+          </XMLElement>
+          <XMLElement dataType="character" isMappable="true" isNode="true" key="14" maxOccurs="1" minOccurs="0" name="Items" useNamespace="-1">
+            <DataFormat>
+              <ProfileCharacterFormat/>
+            </DataFormat>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="15" maxOccurs="1" minOccurs="0" name="Item" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+              <XMLAttribute dataType="character" isMappable="true" isNode="true" key="16" name="ItemNumber" required="false" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLAttribute>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="17" maxOccurs="1" minOccurs="0" name="SKU" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="18" maxOccurs="1" minOccurs="0" name="Name" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="19" maxOccurs="1" minOccurs="0" name="Quantity" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+                <XMLAttribute dataType="character" isMappable="true" isNode="true" key="20" name="type" required="false" useNamespace="-1">
+                  <DataFormat>
+                    <ProfileCharacterFormat/>
+                  </DataFormat>
+                </XMLAttribute>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="21" maxOccurs="1" minOccurs="0" name="Price" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+                <XMLAttribute dataType="character" isMappable="true" isNode="true" key="22" name="currency" required="false" useNamespace="-1">
+                  <DataFormat>
+                    <ProfileCharacterFormat/>
+                  </DataFormat>
+                </XMLAttribute>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="23" maxOccurs="1" minOccurs="0" name="AvailableInStock" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+                <XMLAttribute dataType="character" isMappable="true" isNode="true" key="24" name="type" required="false" useNamespace="-1">
+                  <DataFormat>
+                    <ProfileCharacterFormat/>
+                  </DataFormat>
+                </XMLAttribute>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="25" maxOccurs="1" minOccurs="0" name="DiscountCode" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+                <XMLNSDeclList>
+                  <XMLNSDeclaration defaultNamespace="false" isMappable="false" isNode="true" key="1"/>
+                </XMLNSDeclList>
+                <XMLAttribute dataType="character" isMappable="true" isNode="true" key="26" name="nil" required="false" useNamespace="1">
+                  <DataFormat>
+                    <ProfileCharacterFormat/>
+                  </DataFormat>
+                </XMLAttribute>
+              </XMLElement>
+            </XMLElement>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="27" maxOccurs="1" minOccurs="0" name="Item" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+              <XMLAttribute dataType="character" isMappable="true" isNode="true" key="28" name="ItemNumber" required="false" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLAttribute>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="29" maxOccurs="1" minOccurs="0" name="SKU" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="30" maxOccurs="1" minOccurs="0" name="Name" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="31" maxOccurs="1" minOccurs="0" name="Quantity" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="32" maxOccurs="1" minOccurs="0" name="Price" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+                <XMLAttribute dataType="character" isMappable="true" isNode="true" key="33" name="currency" required="false" useNamespace="-1">
+                  <DataFormat>
+                    <ProfileCharacterFormat/>
+                  </DataFormat>
+                </XMLAttribute>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="34" maxOccurs="1" minOccurs="0" name="AvailableInStock" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+                <XMLAttribute dataType="character" isMappable="true" isNode="true" key="35" name="type" required="false" useNamespace="-1">
+                  <DataFormat>
+                    <ProfileCharacterFormat/>
+                  </DataFormat>
+                </XMLAttribute>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="36" maxOccurs="1" minOccurs="0" name="DiscountCode" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+            </XMLElement>
+          </XMLElement>
+          <XMLElement dataType="character" isMappable="true" isNode="true" key="37" maxOccurs="1" minOccurs="0" name="OrderDate" useNamespace="-1">
+            <DataFormat>
+              <ProfileCharacterFormat/>
+            </DataFormat>
+            <XMLAttribute dataType="character" isMappable="true" isNode="true" key="38" name="type" required="false" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+            </XMLAttribute>
+          </XMLElement>
+          <XMLElement dataType="character" isMappable="true" isNode="true" key="39" maxOccurs="1" minOccurs="0" name="ShipmentScheduled" useNamespace="-1">
+            <DataFormat>
+              <ProfileCharacterFormat/>
+            </DataFormat>
+            <XMLAttribute dataType="character" isMappable="true" isNode="true" key="40" name="type" required="false" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+            </XMLAttribute>
+          </XMLElement>
+          <XMLElement dataType="character" isMappable="true" isNode="true" key="41" maxOccurs="1" minOccurs="0" name="Metadata" useNamespace="-1">
+            <DataFormat>
+              <ProfileCharacterFormat/>
+            </DataFormat>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="42" maxOccurs="1" minOccurs="0" name="SystemDetails" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="43" maxOccurs="1" minOccurs="0" name="SourceSystem" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+              <XMLElement dataType="character" isMappable="true" isNode="true" key="44" maxOccurs="1" minOccurs="0" name="ProcessingEngine" useNamespace="-1">
+                <DataFormat>
+                  <ProfileCharacterFormat/>
+                </DataFormat>
+              </XMLElement>
+            </XMLElement>
+            <XMLElement dataType="character" isMappable="true" isNode="true" key="45" maxOccurs="1" minOccurs="0" name="Notes" useNamespace="-1">
+              <DataFormat>
+                <ProfileCharacterFormat/>
+              </DataFormat>
+            </XMLElement>
+          </XMLElement>
+        </XMLElement>
+      </DataElements>
+      <Namespaces>
+        <XMLNamespace key="-1" name="Empty Namespace">
+          <Types/>
+        </XMLNamespace>
+        <XMLNamespace key="1" name="http://www.w3.org/2001/XMLSchema-instance" prefix="ns1"/>
+      </Namespaces>
+      <tagLists/>
+    </XMLProfile>
+  </bns:object>
+</Component>

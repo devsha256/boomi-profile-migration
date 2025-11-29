@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://example.com/profile" targetNamespace="http://example.com/profile" elementFormDefault="qualified">
+
+  <xs:element name="ProductOrder" type="tns:ProductOrderType"/>
+
+  <xs:complexType name="ContactType">
+    <xs:sequence>
+      <xs:element name="Email" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="Phone">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="CustomerDetailsType">
+    <xs:sequence>
+      <xs:element name="CustomerID" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="FullName" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="Contact" type="tns:ContactType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="IsPreferredCustomer">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ItemType">
+    <xs:sequence>
+      <xs:element name="SKU" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="Name" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="Quantity">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="Price">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="currency" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="AvailableInStock">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="DiscountCode">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="nil" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="ItemNumber" type="xs:string"/>
+  </xs:complexType>
+  <xs:complexType name="ItemsType">
+    <xs:sequence>
+      <xs:element name="Item" type="tns:ItemType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="SystemDetailsType">
+    <xs:sequence>
+      <xs:element name="SourceSystem" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="ProcessingEngine" type="xs:string" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="SystemDetails" type="tns:SystemDetailsType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="Notes" type="xs:string" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ProductOrderType">
+    <xs:sequence>
+      <xs:element name="OrderID">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="CustomerDetails" type="tns:CustomerDetailsType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="Items" type="tns:ItemsType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="OrderDate">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ShipmentScheduled">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="type" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="Metadata" type="tns:MetadataType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
