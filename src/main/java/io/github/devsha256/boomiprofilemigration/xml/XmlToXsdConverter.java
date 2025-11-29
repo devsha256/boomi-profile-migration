@@ -11,14 +11,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * XmlToXsdConverter — final corrected version avoiding 'effectively final' lambda capture issues.
- *
- * Features:
- *  - locates XMLElement under <DataElements>
- *  - merges siblings by name and combines min/max occurs (supports 'unbounded')
- *  - emits tns-prefixed references for generated complexTypes
- *  - emits minLength/maxLength/pattern facets for elements and attributes where present
- *  - no local variable reassignments that break lambda captures
+ * XmlToXsdConverter — corrected to normalize Boomi occurrence attributes:
+ *  - treats -1 or any negative maxOccurs as "unbounded"
+ *  - clamps minOccurs to >= 0
+ *  - previous fixes retained (tns: qualification, merging siblings by name, facets)
  */
 @Component
 public class XmlToXsdConverter {
@@ -46,42 +42,44 @@ public class XmlToXsdConverter {
                 .append("targetNamespace=\"").append(targetNamespace).append("\" ")
                 .append("elementFormDefault=\"qualified\">\n\n");
 
-        // Process top-level XMLElement children under DataElements — merged by name
+        // group top-level elements and preserve insertion order
         var grouped = XmlDomUtils.directChildrenByTag(dataElementsNode, "XMLElement")
                 .stream()
                 .collect(Collectors.groupingBy(e -> e.getAttribute("name"), LinkedHashMap::new, Collectors.toList()));
 
-        // iterate in insertion order
         for (var entry : grouped.entrySet()) {
             var rootName = entry.getKey();
             var elems = entry.getValue();
-            var combined = combineElementsByName(elems); // sets minOccurs/maxOccurs on representative
+            var combined = combineElementsByName(elems); // sets normalized minOccurs/maxOccurs on representative
             String typeName = buildOrGetTypeForElement(combined, capitalize(rootName) + "Type");
             out.append(String.format("  <xs:element name=\"%s\" type=\"%s\"/>%n", rootName, qualifyType(typeName)));
         }
 
         out.append("\n");
-        // emit named complex types
-        for (var typeXml : typeRegistry.values()) {
-            out.append(typeXml).append("\n");
-        }
+        typeRegistry.values().forEach(s -> out.append(s).append("\n"));
         out.append("</xs:schema>");
         return out.toString();
     }
 
-    // picks first element as representative and writes combined min/max on it
+    /**
+     * Combine siblings of same name into a representative Element.
+     * Normalizes the occurrence attributes:
+     *  - minOccurs -> numeric >= 0 (default 1)
+     *  - maxOccurs -> numeric >=0 or "unbounded" (if any sibling implies unbounded or negative values like -1)
+     */
     private Element combineElementsByName(List<Element> elems) {
         Element rep = elems.get(0);
 
         int combinedMin = elems.stream()
                 .map(e -> Optional.ofNullable(e.getAttribute("minOccurs")).filter(s -> !s.isBlank()).orElse("1"))
-                .mapToInt(XmlToXsdConverter::parseMin)
+                .mapToInt(XmlToXsdConverter::normalizeMin)
                 .min().orElse(1);
 
         String combinedMax = elems.stream()
                 .map(e -> Optional.ofNullable(e.getAttribute("maxOccurs")).filter(s -> !s.isBlank()).orElse("1"))
                 .map(String::trim)
-                .reduce((a, b) -> combineMaxValues(a, b))
+                .map(XmlToXsdConverter::normalizeMaxToString)
+                .reduce((a, b) -> combineMaxValuesForStrings(a, b))
                 .orElse("1");
 
         rep.setAttribute("minOccurs", String.valueOf(combinedMin));
@@ -90,24 +88,43 @@ public class XmlToXsdConverter {
         return rep;
     }
 
-    private static int parseMin(String s) {
+    // normalize min: parse integer, clamp to >=0, default 1
+    private static int normalizeMin(String s) {
         try {
-            return Integer.parseInt(s);
+            int v = Integer.parseInt(s);
+            return Math.max(0, v);
         } catch (Exception ex) {
             return 1;
         }
     }
 
-    private static String combineMaxValues(String a, String b) {
+    // normalize max: if "-1" or negative -> return "unbounded"; if numeric >=0 -> return numeric string
+    private static String normalizeMaxToString(String s) {
+        if (s == null) return "1";
+        s = s.trim();
+        // treat common Boomi negative indicator "-1" as unbounded
+        if (s.equals("-1")) return "unbounded";
+        try {
+            int v = Integer.parseInt(s);
+            if (v < 0) return "unbounded";
+            return String.valueOf(v);
+        } catch (Exception ex) {
+            // if not a number and not "unbounded", try to accept literal "unbounded"
+            if ("unbounded".equalsIgnoreCase(s)) return "unbounded";
+            // otherwise fall back to "1"
+            return "1";
+        }
+    }
+
+    // combine two max strings (either numeric or "unbounded")
+    private static String combineMaxValuesForStrings(String a, String b) {
         if ("unbounded".equalsIgnoreCase(a) || "unbounded".equalsIgnoreCase(b)) return "unbounded";
         try {
             int ia = Integer.parseInt(a);
             int ib = Integer.parseInt(b);
             return String.valueOf(Math.max(ia, ib));
         } catch (Exception ex) {
-            if ("unbounded".equalsIgnoreCase(a)) return "unbounded";
-            if ("unbounded".equalsIgnoreCase(b)) return "unbounded";
-            return a;
+            return "unbounded";
         }
     }
 
@@ -121,7 +138,6 @@ public class XmlToXsdConverter {
         StringWriter w = new StringWriter();
         w.append(String.format("  <xs:complexType name=\"%s\">%n", typeName));
 
-        // children grouped by name to merge duplicates
         var rawChildren = XmlDomUtils.directChildrenByTag(elem, "XMLElement");
         var childrenByName = rawChildren.stream()
                 .collect(Collectors.groupingBy(c -> c.getAttribute("name"), LinkedHashMap::new, Collectors.toList()));
@@ -134,7 +150,8 @@ public class XmlToXsdConverter {
                 final Element combinedChild = combineElementsByName(sameNamed);
 
                 final String min = Optional.ofNullable(combinedChild.getAttribute("minOccurs")).filter(s -> !s.isBlank()).orElse("1");
-                final String max = Optional.ofNullable(combinedChild.getAttribute("maxOccurs")).filter(s -> !s.isBlank()).orElse("1");
+                final String maxRaw = Optional.ofNullable(combinedChild.getAttribute("maxOccurs")).filter(s -> !s.isBlank()).orElse("1");
+                final String max = normalizeMaxToString(maxRaw);
 
                 var nested = XmlDomUtils.directChildrenByTag(combinedChild, "XMLElement");
                 if (!nested.isEmpty()) {
@@ -153,7 +170,6 @@ public class XmlToXsdConverter {
                         w.append("          <xs:simpleContent>\n");
                         w.append(String.format("            <xs:extension base=\"%s\">%n", base));
 
-                        // attributes — we compute everything inside the lambda to avoid captured mutable state
                         for (Element a : attrs) {
                             final String attrName = a.getAttribute("name");
                             final String attrTypeRaw = chooseBoomiType(a);
@@ -182,14 +198,12 @@ public class XmlToXsdConverter {
                         w.append("        </xs:complexType>\n");
                         w.append("      </xs:element>\n");
                     } else {
-                        // simple element without attributes — possibly emit facets
                         var boomiType = chooseBoomiType(combinedChild);
                         var xsdType = BoomiTypeMapper.toXsd(boomiType);
                         final boolean stringish = isStringish(boomiType);
                         final boolean hasFacets = hasLengthOrPattern(combinedChild);
 
                         if (stringish && hasFacets) {
-                            // inline anonymous simpleType with facets
                             w.append(String.format("      <xs:element name=\"%s\">%n", childName));
                             w.append("        <xs:simpleType>\n");
                             w.append(String.format("          <xs:restriction base=\"%s\">%n", xsdType == null ? "xs:string" : xsdType));
@@ -208,7 +222,6 @@ public class XmlToXsdConverter {
             }
             w.append("    </xs:sequence>\n");
         } else {
-            // no child elements; this element may have attributes or be simple
             var attrs = XmlDomUtils.directChildrenByTag(elem, "XMLAttribute");
             if (!attrs.isEmpty()) {
                 var boomiType = chooseBoomiType(elem);
@@ -244,7 +257,6 @@ public class XmlToXsdConverter {
                 w.append("      </xs:extension>\n");
                 w.append("    </xs:simpleContent>\n");
             } else {
-                // pure simple element: emit inline simpleType with facets if present
                 var boomiType = chooseBoomiType(elem);
                 var xsdBase = BoomiTypeMapper.toXsd(boomiType);
                 final boolean stringish = isStringish(boomiType);
@@ -263,7 +275,6 @@ public class XmlToXsdConverter {
             }
         }
 
-        // element-level attributes (if any remain)
         for (Element a : XmlDomUtils.directChildrenByTag(elem, "XMLAttribute")) {
             final String attrName = a.getAttribute("name");
             final String attrTypeRaw = chooseBoomiType(a);
@@ -293,7 +304,7 @@ public class XmlToXsdConverter {
         return typeName;
     }
 
-    // helpers for emitting facets
+    // helpers (facets, fingerprinting, etc.)
 
     private static boolean isStringish(String boomiType) {
         if (boomiType == null) return true;
@@ -303,8 +314,7 @@ public class XmlToXsdConverter {
 
     private static boolean hasLengthOrPattern(Element node) {
         if (node == null) return false;
-        if (node.hasAttribute("maxLength") || node.hasAttribute("minLength") || node.hasAttribute("pattern")) return true;
-        return false;
+        return node.hasAttribute("maxLength") || node.hasAttribute("minLength") || node.hasAttribute("pattern");
     }
 
     private static void maybeEmitLengthFacets(StringWriter w, Element node) {
@@ -312,13 +322,13 @@ public class XmlToXsdConverter {
         if (node.hasAttribute("minLength")) {
             try {
                 int min = Integer.parseInt(node.getAttribute("minLength"));
-                w.append(String.format("            <xs:minLength value=\"%d\"/>%n", min));
+                w.append(String.format("            <xs:minLength value=\"%d\"/>%n", Math.max(0, min)));
             } catch (Exception ignored) { }
         }
         if (node.hasAttribute("maxLength")) {
             try {
                 int max = Integer.parseInt(node.getAttribute("maxLength"));
-                w.append(String.format("            <xs:maxLength value=\"%d\"/>%n", max));
+                if (max >= 0) w.append(String.format("            <xs:maxLength value=\"%d\"/>%n", max));
             } catch (Exception ignored) { }
         }
     }
@@ -350,11 +360,12 @@ public class XmlToXsdConverter {
                 .forEach((childName, list) -> {
                     int combinedMin = list.stream()
                             .map(c -> Optional.ofNullable(c.getAttribute("minOccurs")).filter(s -> !s.isBlank()).orElse("1"))
-                            .mapToInt(XmlToXsdConverter::parseMin).min().orElse(1);
+                            .mapToInt(XmlToXsdConverter::normalizeMin).min().orElse(1);
                     String combinedMax = list.stream()
                             .map(c -> Optional.ofNullable(c.getAttribute("maxOccurs")).filter(s -> !s.isBlank()).orElse("1"))
                             .map(String::trim)
-                            .reduce((a, b) -> combineMaxValues(a, b))
+                            .map(XmlToXsdConverter::normalizeMaxToString)
+                            .reduce((a, b) -> combineMaxValuesForStrings(a, b))
                             .orElse("1");
 
                     sb.append(childName).append("[").append(combinedMin).append(",").append(combinedMax).append("]").append("{");
