@@ -10,7 +10,16 @@ import java.io.StringWriter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
+/**
+ * XmlToXsdConverter — final corrected version avoiding 'effectively final' lambda capture issues.
+ *
+ * Features:
+ *  - locates XMLElement under <DataElements>
+ *  - merges siblings by name and combines min/max occurs (supports 'unbounded')
+ *  - emits tns-prefixed references for generated complexTypes
+ *  - emits minLength/maxLength/pattern facets for elements and attributes where present
+ *  - no local variable reassignments that break lambda captures
+ */
 @Component
 public class XmlToXsdConverter {
 
@@ -37,21 +46,30 @@ public class XmlToXsdConverter {
                 .append("targetNamespace=\"").append(targetNamespace).append("\" ")
                 .append("elementFormDefault=\"qualified\">\n\n");
 
-        XmlDomUtils.directChildrenByTag(dataElementsNode, "XMLElement")
+        // Process top-level XMLElement children under DataElements — merged by name
+        var grouped = XmlDomUtils.directChildrenByTag(dataElementsNode, "XMLElement")
                 .stream()
-                .collect(Collectors.groupingBy(e -> e.getAttribute("name"), LinkedHashMap::new, Collectors.toList()))
-                .forEach((rootName, elems) -> {
-                    var combined = combineElementsByName(elems);
-                    String typeName = buildOrGetTypeForElement(combined, capitalize(rootName) + "Type");
-                    out.append(String.format("  <xs:element name=\"%s\" type=\"%s\"/>%n", rootName, qualifyType(typeName)));
-                });
+                .collect(Collectors.groupingBy(e -> e.getAttribute("name"), LinkedHashMap::new, Collectors.toList()));
+
+        // iterate in insertion order
+        for (var entry : grouped.entrySet()) {
+            var rootName = entry.getKey();
+            var elems = entry.getValue();
+            var combined = combineElementsByName(elems); // sets minOccurs/maxOccurs on representative
+            String typeName = buildOrGetTypeForElement(combined, capitalize(rootName) + "Type");
+            out.append(String.format("  <xs:element name=\"%s\" type=\"%s\"/>%n", rootName, qualifyType(typeName)));
+        }
 
         out.append("\n");
-        typeRegistry.values().forEach(s -> out.append(s).append("\n"));
+        // emit named complex types
+        for (var typeXml : typeRegistry.values()) {
+            out.append(typeXml).append("\n");
+        }
         out.append("</xs:schema>");
         return out.toString();
     }
 
+    // picks first element as representative and writes combined min/max on it
     private Element combineElementsByName(List<Element> elems) {
         Element rep = elems.get(0);
 
@@ -98,23 +116,25 @@ public class XmlToXsdConverter {
         if (fingerprintToTypeName.containsKey(fingerprint)) {
             return fingerprintToTypeName.get(fingerprint);
         }
+
         String typeName = uniqueTypeName(preferredTypeBase);
         StringWriter w = new StringWriter();
         w.append(String.format("  <xs:complexType name=\"%s\">%n", typeName));
 
+        // children grouped by name to merge duplicates
         var rawChildren = XmlDomUtils.directChildrenByTag(elem, "XMLElement");
         var childrenByName = rawChildren.stream()
                 .collect(Collectors.groupingBy(c -> c.getAttribute("name"), LinkedHashMap::new, Collectors.toList()));
 
         if (!childrenByName.isEmpty()) {
             w.append("    <xs:sequence>\n");
-            for (var entry : childrenByName.entrySet()) {
-                String childName = entry.getKey();
-                List<Element> sameNamed = entry.getValue();
-                Element combinedChild = combineElementsByName(sameNamed);
+            for (var childEntry : childrenByName.entrySet()) {
+                final String childName = childEntry.getKey();
+                final List<Element> sameNamed = childEntry.getValue();
+                final Element combinedChild = combineElementsByName(sameNamed);
 
-                String min = Optional.ofNullable(combinedChild.getAttribute("minOccurs")).filter(s -> !s.isBlank()).orElse("1");
-                String max = Optional.ofNullable(combinedChild.getAttribute("maxOccurs")).filter(s -> !s.isBlank()).orElse("1");
+                final String min = Optional.ofNullable(combinedChild.getAttribute("minOccurs")).filter(s -> !s.isBlank()).orElse("1");
+                final String max = Optional.ofNullable(combinedChild.getAttribute("maxOccurs")).filter(s -> !s.isBlank()).orElse("1");
 
                 var nested = XmlDomUtils.directChildrenByTag(combinedChild, "XMLElement");
                 if (!nested.isEmpty()) {
@@ -124,7 +144,6 @@ public class XmlToXsdConverter {
                 } else {
                     var attrs = XmlDomUtils.directChildrenByTag(combinedChild, "XMLAttribute");
                     if (!attrs.isEmpty()) {
-                        // element has attributes -> complexType with simpleContent; text-content facets are not applied here
                         var boomiType = chooseBoomiType(combinedChild);
                         var base = BoomiTypeMapper.toXsd(boomiType);
                         if (base == null || base.isBlank()) base = "xs:string";
@@ -134,13 +153,16 @@ public class XmlToXsdConverter {
                         w.append("          <xs:simpleContent>\n");
                         w.append(String.format("            <xs:extension base=\"%s\">%n", base));
 
-                        // attributes with possible constraints (emit inline simpleType for attribute if length/pattern present)
-                        attrs.forEach(a -> {
-                            var attrType = chooseBoomiType(a);
-                            var xsdAttrType = BoomiTypeMapper.toXsd(attrType);
-                            if (hasLengthOrPattern(a)) {
-                                // emit inline simpleType with facets
-                                w.append(String.format("              <xs:attribute name=\"%s\">%n", a.getAttribute("name")));
+                        // attributes — we compute everything inside the lambda to avoid captured mutable state
+                        for (Element a : attrs) {
+                            final String attrName = a.getAttribute("name");
+                            final String attrTypeRaw = chooseBoomiType(a);
+                            final String xsdAttrType = BoomiTypeMapper.toXsd(attrTypeRaw);
+                            final boolean hasFacets = hasLengthOrPattern(a);
+                            final boolean required = a.hasAttribute("required") && "true".equalsIgnoreCase(a.getAttribute("required"));
+
+                            if (hasFacets) {
+                                w.append(String.format("              <xs:attribute name=\"%s\">%n", attrName));
                                 w.append("                <xs:simpleType>\n");
                                 w.append(String.format("                  <xs:restriction base=\"%s\">%n", xsdAttrType == null ? "xs:string" : xsdAttrType));
                                 maybeEmitLengthFacets(w, a);
@@ -149,21 +171,25 @@ public class XmlToXsdConverter {
                                 w.append("                </xs:simpleType>\n");
                                 w.append("              </xs:attribute>\n");
                             } else {
-                                String use = (a.hasAttribute("required") && "true".equalsIgnoreCase(a.getAttribute("required"))) ? " use=\"required\"" : "";
+                                String use = required ? " use=\"required\"" : "";
                                 w.append(String.format("              <xs:attribute name=\"%s\" type=\"%s\"%s/>%n",
-                                        a.getAttribute("name"), xsdAttrType == null ? "xs:string" : xsdAttrType, use));
+                                        attrName, xsdAttrType == null ? "xs:string" : xsdAttrType, use));
                             }
-                        });
+                        }
 
                         w.append("            </xs:extension>\n");
                         w.append("          </xs:simpleContent>\n");
                         w.append("        </xs:complexType>\n");
-                        w.append(String.format("      </xs:element>%n"));
+                        w.append("      </xs:element>\n");
                     } else {
-                        // simple element without attributes -> emit inline simpleType with facets if present
+                        // simple element without attributes — possibly emit facets
                         var boomiType = chooseBoomiType(combinedChild);
                         var xsdType = BoomiTypeMapper.toXsd(boomiType);
-                        if (isStringish(boomiType) && hasLengthOrPattern(combinedChild)) {
+                        final boolean stringish = isStringish(boomiType);
+                        final boolean hasFacets = hasLengthOrPattern(combinedChild);
+
+                        if (stringish && hasFacets) {
+                            // inline anonymous simpleType with facets
                             w.append(String.format("      <xs:element name=\"%s\">%n", childName));
                             w.append("        <xs:simpleType>\n");
                             w.append(String.format("          <xs:restriction base=\"%s\">%n", xsdType == null ? "xs:string" : xsdType));
@@ -171,30 +197,36 @@ public class XmlToXsdConverter {
                             maybeEmitPatternFacet(w, combinedChild);
                             w.append("          </xs:restriction>\n");
                             w.append("        </xs:simpleType>\n");
-                            w.append(String.format("      </xs:element>%n"));
+                            w.append("      </xs:element>\n");
                         } else {
-                            if (xsdType == null || xsdType.isBlank()) xsdType = "xs:string";
+                            String typeOut = (xsdType == null || xsdType.isBlank()) ? "xs:string" : xsdType;
                             w.append(String.format("      <xs:element name=\"%s\" type=\"%s\" minOccurs=\"%s\" maxOccurs=\"%s\"/>%n",
-                                    childName, xsdType, min, max));
+                                    childName, typeOut, min, max));
                         }
                     }
                 }
             }
             w.append("    </xs:sequence>\n");
         } else {
-            // leaf element itself
+            // no child elements; this element may have attributes or be simple
             var attrs = XmlDomUtils.directChildrenByTag(elem, "XMLAttribute");
             if (!attrs.isEmpty()) {
                 var boomiType = chooseBoomiType(elem);
                 var base = BoomiTypeMapper.toXsd(boomiType);
                 if (base == null || base.isBlank()) base = "xs:string";
+
                 w.append("    <xs:simpleContent>\n");
                 w.append(String.format("      <xs:extension base=\"%s\">%n", base));
-                attrs.forEach(a -> {
-                    var attrType = chooseBoomiType(a);
-                    var xsdAttrType = BoomiTypeMapper.toXsd(attrType);
-                    if (hasLengthOrPattern(a)) {
-                        w.append(String.format("        <xs:attribute name=\"%s\">%n", a.getAttribute("name")));
+
+                for (Element a : attrs) {
+                    final String attrName = a.getAttribute("name");
+                    final String attrTypeRaw = chooseBoomiType(a);
+                    final String xsdAttrType = BoomiTypeMapper.toXsd(attrTypeRaw);
+                    final boolean hasFacets = hasLengthOrPattern(a);
+                    final boolean required = a.hasAttribute("required") && "true".equalsIgnoreCase(a.getAttribute("required"));
+
+                    if (hasFacets) {
+                        w.append(String.format("        <xs:attribute name=\"%s\">%n", attrName));
                         w.append("          <xs:simpleType>\n");
                         w.append(String.format("            <xs:restriction base=\"%s\">%n", xsdAttrType == null ? "xs:string" : xsdAttrType));
                         maybeEmitLengthFacets(w, a);
@@ -203,33 +235,44 @@ public class XmlToXsdConverter {
                         w.append("          </xs:simpleType>\n");
                         w.append("        </xs:attribute>\n");
                     } else {
-                        String use = (a.hasAttribute("required") && "true".equalsIgnoreCase(a.getAttribute("required"))) ? " use=\"required\"" : "";
+                        String use = required ? " use=\"required\"" : "";
                         w.append(String.format("        <xs:attribute name=\"%s\" type=\"%s\"%s/>%n",
-                                a.getAttribute("name"), xsdAttrTypeOrDefault(xsdAttrType(attrType)), use));
+                                attrName, xsdAttrTypeOrDefault(xsdAttrType), use));
                     }
-                });
+                }
+
                 w.append("      </xs:extension>\n");
                 w.append("    </xs:simpleContent>\n");
             } else {
+                // pure simple element: emit inline simpleType with facets if present
                 var boomiType = chooseBoomiType(elem);
-                var base = BoomiTypeMapper.toXsd(boomiType);
-                if (isStringish(boomiType) && hasLengthOrPattern(elem)) {
-                    w.append("    <xs:simpleContent>\n"); // use simpleContent only to carry extension placeholder (we'll instead create an inline simpleType)
-                    // To keep it valid: produce anonymous simpleType instead of simpleContent+extension
-                    w = replaceSimpleContentWithSimpleType(w, boomiType, elem);
+                var xsdBase = BoomiTypeMapper.toXsd(boomiType);
+                final boolean stringish = isStringish(boomiType);
+                final boolean hasFacets = hasLengthOrPattern(elem);
+                if (stringish && hasFacets) {
+                    w.append("    <xs:simpleType>\n");
+                    w.append(String.format("      <xs:restriction base=\"%s\">%n", xsdBase == null ? "xs:string" : xsdBase));
+                    maybeEmitLengthFacets(w, elem);
+                    maybeEmitPatternFacet(w, elem);
+                    w.append("      </xs:restriction>\n");
+                    w.append("    </xs:simpleType>\n");
                 } else {
-                    if (base == null || base.isBlank()) base = "xs:string";
-                    w.append(String.format("    <xs:simpleContent>%n      <xs:extension base=\"%s\"/>%n    </xs:simpleContent>%n", base));
+                    if (xsdBase == null || xsdBase.isBlank()) xsdBase = "xs:string";
+                    w.append(String.format("    <xs:simpleContent>%n      <xs:extension base=\"%s\"/>%n    </xs:simpleContent>%n", xsdBase));
                 }
             }
         }
 
-        // element-level attributes (attributes directly under elem, duplicates handled above where appropriate)
-        XmlDomUtils.directChildrenByTag(elem, "XMLAttribute").forEach(a -> {
-            var attrType = chooseBoomiType(a);
-            var xsdAttrType = BoomiTypeMapper.toXsd(attrType);
-            if (hasLengthOrPattern(a)) {
-                w.append(String.format("    <xs:attribute name=\"%s\">%n", a.getAttribute("name")));
+        // element-level attributes (if any remain)
+        for (Element a : XmlDomUtils.directChildrenByTag(elem, "XMLAttribute")) {
+            final String attrName = a.getAttribute("name");
+            final String attrTypeRaw = chooseBoomiType(a);
+            final String xsdAttrType = BoomiTypeMapper.toXsd(attrTypeRaw);
+            final boolean hasFacets = hasLengthOrPattern(a);
+            final boolean required = a.hasAttribute("required") && "true".equalsIgnoreCase(a.getAttribute("required"));
+
+            if (hasFacets) {
+                w.append(String.format("    <xs:attribute name=\"%s\">%n", attrName));
                 w.append("      <xs:simpleType>\n");
                 w.append(String.format("        <xs:restriction base=\"%s\">%n", xsdAttrType == null ? "xs:string" : xsdAttrType));
                 maybeEmitLengthFacets(w, a);
@@ -238,11 +281,11 @@ public class XmlToXsdConverter {
                 w.append("      </xs:simpleType>\n");
                 w.append("    </xs:attribute>\n");
             } else {
-                String use = (a.hasAttribute("required") && "true".equalsIgnoreCase(a.getAttribute("required"))) ? " use=\"required\"" : "";
+                String use = required ? " use=\"required\"" : "";
                 w.append(String.format("    <xs:attribute name=\"%s\" type=\"%s\"%s/>%n",
-                        a.getAttribute("name"), xsdAttrTypeOrDefault(BoomiTypeMapper.toXsd(attrType)), use));
+                        attrName, xsdAttrTypeOrDefault(xsdAttrType), use));
             }
-        });
+        }
 
         w.append("  </xs:complexType>");
         typeRegistry.put(fingerprint, w.toString());
@@ -250,23 +293,7 @@ public class XmlToXsdConverter {
         return typeName;
     }
 
-    // helper to generate inline simpleType for leaf element when it has length/pattern constraints and no attributes.
-    private StringWriter replaceSimpleContentWithSimpleType(StringWriter w, String boomiType, Element elem) {
-        // remove the last appended simpleContent opening — simpler to append correct anonymous simpleType instead
-        // Find string so far and append inline simpleType
-        StringWriter newW = new StringWriter();
-        newW.append(w.toString());
-        // create inline simpleType
-        var xsdBase = BoomiTypeMapper.toXsd(boomiType);
-        if (xsdBase == null || xsdBase.isBlank()) xsdBase = "xs:string";
-        newW.append("    <xs:simpleType>\n");
-        newW.append(String.format("      <xs:restriction base=\"%s\">%n", xsdBase));
-        maybeEmitLengthFacets(newW, elem);
-        maybeEmitPatternFacet(newW, elem);
-        newW.append("      </xs:restriction>\n");
-        newW.append("    </xs:simpleType>\n");
-        return newW;
-    }
+    // helpers for emitting facets
 
     private static boolean isStringish(String boomiType) {
         if (boomiType == null) return true;
@@ -314,10 +341,6 @@ public class XmlToXsdConverter {
         return (t == null || t.isBlank()) ? "xs:string" : t;
     }
 
-    private static String xsdAttrType(String attrType) {
-        return attrType == null ? null : BoomiTypeMapper.toXsd(attrType);
-    }
-
     private String fingerprint(Element e) {
         var sb = new StringBuilder();
         sb.append(Optional.ofNullable(e.getAttribute("name")).orElse("")).append("|");
@@ -347,6 +370,7 @@ public class XmlToXsdConverter {
                     }
                     sb.append("}|");
                 });
+
         XmlDomUtils.directChildrenByTag(e, "XMLAttribute").forEach(a ->
                 sb.append("@").append(a.getAttribute("name")).append(":")
                         .append(Optional.ofNullable(
@@ -356,7 +380,7 @@ public class XmlToXsdConverter {
                                 .orElse("string"))
                         .append("|")
         );
-        // include element-level length/pattern hints in fingerprint so types with different facets don't collide
+
         if (e.hasAttribute("minLength")) sb.append("minL=").append(e.getAttribute("minLength")).append("|");
         if (e.hasAttribute("maxLength")) sb.append("maxL=").append(e.getAttribute("maxLength")).append("|");
         if (e.hasAttribute("pattern")) sb.append("pat=").append(e.getAttribute("pattern")).append("|");
